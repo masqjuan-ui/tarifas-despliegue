@@ -1,12 +1,49 @@
 name: Despliegue
-on: push
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: despliegue-main
+  cancel-in-progress: false
+env:
+  IMAGEN: mi-app:${{ github.sha }}
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        entorno: [staging, production]
     steps:
       - uses: actions/checkout@v7
-      - run: npm install && npm test
-      - run: bash scripts/deploy.sh mi-app:latest ${{ matrix.entorno }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+  staging:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash scripts/deploy.sh "$IMAGEN" staging
+      - id: smoke
+        run: node scripts/smoke.mjs
+      - name: Rollback al commit anterior
+        if: failure() && steps.smoke.outcome == 'failure'
+        env:
+          ANTERIOR: ${{ github.event.before }}
+        run: |
+          if [[ "$ANTERIOR" =~ ^0+$ ]]; then
+            echo "::error::No hay commit anterior al push; no se puede hacer rollback"
+            exit 1
+          fi
+          bash scripts/deploy.sh "mi-app:$ANTERIOR" staging
+          echo "::error::Smoke test fallido; staging revertido a mi-app:$ANTERIOR"
+  production:
+    needs: staging
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash scripts/deploy.sh "$IMAGEN" production
