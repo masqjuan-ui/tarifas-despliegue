@@ -1,0 +1,12 @@
+name: Despliegue
+on: push
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        entorno: [staging, production]
+    steps:
+      - uses: actions/checkout@v7
+      - run: npm install && npm test
+      - run: bash scripts/deploy.sh mi-app:latest ${{ matrix.entorno }}

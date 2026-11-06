@@ -1,0 +1,9 @@
+{
+  "name": "tarifas-despliegue",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Repositorio de práctica del curso de Claude Code (Tema 24): despliegue por etapas",
+  "scripts": {
+    "test": "node --test"
+  }
+}
